@@ -1,0 +1,70 @@
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+sudo apt update
+sudo apt install -y curl jq
+%{ if is_main_headnode ~}
+sudo apt install -y python3-pip
+pip3 install --no-input flask
+%{ endif ~}
+
+%{ if headnode_has_ib ~}
+curl -s -L https://nvidia.github.io/nvidia-container-runtime/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-archive.gpg
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L "https://nvidia.github.io/nvidia-container-runtime/$distribution/nvidia-container-runtime.list" | \
+    sed 's|deb |deb [signed-by=/usr/share/keyrings/nvidia-archive.gpg] |g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-runtime.list
+sudo apt update && sudo apt install -y nvidia-container-runtime
+%{ endif ~}
+
+while [ ! -e "/root/rke-0-main.json" ]; do echo "Waiting for headnode metadata file to be present..."; sleep 2; done;
+
+main_headnode_priv_ip=$(jq -r ".network_interfaces[0].private_ipv4.address" /root/rke-0-main.json)
+main_headnode_pub_ip=$(jq -r ".network_interfaces[0].public_ipv4.address" /root/rke-0-main.json)
+
+while [ ! -e "/root/rke-lb-main.json" ]; do echo "Waiting for lb metadata file to be present..."; sleep 2; done;
+lb_host=$(jq -r ".network_interfaces[0].public_ipv4.address" /root/rke-lb-main.json)
+
+export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+
+# Creating directory for RKE2 config file
+mkdir -p /etc/rancher/rke2
+
+%{ if is_main_headnode ~}
+
+# Creating RKE2 server config file
+cat << EOF > /etc/rancher/rke2/config.yaml
+write-kubeconfig-mode: "0654"
+tls-san:
+  - $lb_host
+  - $main_headnode_pub_ip
+EOF
+
+curl -sfL https://get.rke2.io | sh -s
+systemctl enable rke2-server.service
+systemctl start rke2-server.service
+
+python3 /opt/rke-0-serve-token.py &
+
+%{ else ~}
+url="http://$main_headnode_priv_ip:5500/rke-server-token"
+timeout=60
+
+while ! curl -s --output /dev/null --head --fail --max-time $timeout "$url"; do :; done
+
+rke_token=$(curl -s $url)
+
+# Creating server config file
+cat << EOF > /etc/rancher/rke2/config.yaml
+server: https://$main_headnode_priv_ip:9345
+token: $rke_token
+write-kubeconfig-mode: "0654"
+tls-san:
+  - $lb_host
+  - $main_headnode_pub_ip
+EOF
+
+curl -sfL https://get.rke2.io | sh -s
+systemctl enable rke2-server.service
+systemctl start rke2-server.service
+
+%{ endif ~}

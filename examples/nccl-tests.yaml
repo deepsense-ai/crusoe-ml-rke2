@@ -1,0 +1,115 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-tests-gdr-16
+spec:
+  slotsPerWorker: 8
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+         spec:
+          restartPolicy: OnFailure
+          initContainers:
+          - image: crusoecloud/nccl-tests:h100-23.10-py3
+            imagePullPolicy: IfNotPresent
+            name: init
+            command: ["sh", "-c", "sleep 5"]
+          volumes:
+          - name: nccl-topo
+            hostPath:
+              path: /etc/crusoe/nccl_topo
+              type: Directory
+          containers:
+          - image: crusoecloud/nccl-tests:h100-23.10-py3
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - name: nccl-topo
+              mountPath: /opt/nccl_topo
+            name: nccl-test-launcher
+            env:
+             - name: NCCL_TOPO_FILE
+               value: /opt/nccl_topo/h100-80gb-sxm-ib-cloud-hypervisor.xml
+            command:
+            - /opt/hpcx/ompi/bin/mpirun
+            - --allow-run-as-root
+            - --tag-output
+            - -np
+            - "16"
+            - -bind-to
+            - none
+            - -map-by
+            - slot
+            - -mca 
+            - coll_hcoll_enable 
+            - "0"
+            - -x 
+            - NCCL_IB_PCI_RELAXED_ORDERING=1
+            - -x 
+            - NCCL_IB_SPLIT_DATA_ON_QPS=0
+            - -x 
+            - NCCL_IB_QPS_PER_CONNECTION=2
+            - -x
+            - NCCL_IB_MERGE_VFS=0
+            - -x
+            - NCCL_IB_HCA=^mlx5_0:1 
+            - -x
+            - NCCL_IBEXT_DISABLE=1 
+            - -x
+            - NCCL_TOPO_FILE
+            - -x
+            - PATH
+            - -x
+            - LD_LIBRARY_PATH
+            - -x
+            - NCCL_DEBUG=INFO
+            - -x
+            - NCCL_ALGO=RING
+            - /opt/nccl-tests/build/broadcast_perf
+            - -b
+            - "8"
+            - -e
+            - 2G
+            - -f
+            - "2"
+            - -t
+            - "1"
+            - -g
+            - "1"
+            - -c
+            - "1"
+            - -n
+            - "100"
+    Worker:
+      replicas: 2
+      template:
+        spec:
+          runtimeClassName: nvidia
+          volumes:
+          - name: dshm
+            emptyDir:
+              medium: Memory
+          - name: nccl-topo
+            hostPath:
+              path: /etc/crusoe/nccl_topo
+              type: Directory
+          containers:
+          - image: crusoecloud/nccl-tests:h100-23.10-py3
+            imagePullPolicy: IfNotPresent
+            name: nccl-worker
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: dshm
+            - name: nccl-topo
+              mountPath: /opt/nccl_topo
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                nvidia.com/hostdev: 8
+                memory: 120000Mi
+              requests:
+                nvidia.com/gpu: 8
+                nvidia.com/hostdev: 8
+                memory: 120000Mi
