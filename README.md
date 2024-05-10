@@ -1,4 +1,4 @@
-# Rancher K3s Deployment on Crusoe Cloud
+# Rancher RKE Deployment on Crusoe Cloud
 
 ## Known Issues
 
@@ -17,7 +17,7 @@ To use as a module fill in the `variables` in your own `main.tf` file
 
 ```
 module "crusoe" {
-  source = "github.com/crusoecloud/crusoe-ml-k3s"
+  source = "github.com/crusoecloud/crusoe-ml-rke2"
   ssh_privkey_path="</path/to/priv.key"
   ssh_pubkey="<pub_key>"
   worker_instance_type = "h100-80gb-sxm-ib.8x"
@@ -57,11 +57,11 @@ terraform apply
 Once the deployment is complete, you can access the cluster by copying the `kubeconfig` file from the headnode. Replace the 'server' address in the Kubeconfig with that of your load balancer (or control plane node when deploying single control plane node configurations). 
 
 ```bash
-k3s_endpoint=$(terraform output -raw k3-ingress-instance_public_ip)
-headnode_endpoint=$(terraform output -raw k3-headnode-instance_public_ip)
-scp -i $TF_VAR_ssh_privkey_path "root@${headnode_endpoint}:/etc/rancher/k3s/k3s.yaml" ./kubeconfig
+rke_endpoint=$(terraform output -raw rke-ingress-instance_public_ip)
+headnode_endpoint=$(terraform output -raw rke-headnode-instance_public_ip)
+scp -i $TF_VAR_ssh_privkey_path "root@${headnode_endpoint}:/etc/rancher/rke2/rke2.yaml" ./kubeconfig
 # change the endpoint to the kubectl endpoint
-sed -i '' "s/127.0.0.1/${k3s_endpoint}/g" ./kubeconfig
+sed -i '' "s/127.0.0.1/${rke_endpoint}/g" ./kubeconfig
 # rename the context (optional)
 sed -i '' "s/default/crusoe/g" ./kubeconfig
 export KUBECONFIG="$(pwd)/kubeconfig"
