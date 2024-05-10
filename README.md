@@ -7,10 +7,9 @@ If the Terraform below fails contact support@crusoecloud.com for help.
 ## Requirements
 
 - [Terraform CLI](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
-- [Crusoe Cloud ClI](https://docs.crusoecloud.com/quickstart/installing-the-cli/index.html)
+- [Crusoe Cloud CLI](https://docs.crusoecloud.com/quickstart/installing-the-cli/index.html)
 - [Crusoe Cloud Credentials](https://docs.crusoecloud.com/account-management/managing-api-keys)
   - Either stored in `~/.crusoe/credentials` or exported as environment variables `CRUSOE_x`
-- []
 
 ## Deployment
 
