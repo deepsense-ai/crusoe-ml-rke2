@@ -42,7 +42,7 @@ locals {
         %{~ for index, instance in crusoe_compute_instance.rke_headnode ~}
         server rke_node${index} ${instance.network_interfaces[0].private_ipv4.address}:6443 check
         %{~ endfor ~}
-    
+
     backend rke_mgmt_nodes
         mode tcp
         balance roundrobin
@@ -65,6 +65,11 @@ resource "crusoe_compute_instance" "rke_lb" {
   location       = var.deploy_location
   image          = var.headnode_image
   startup_script = file("${path.module}/rkehaproxy-install.sh")
+  network_interfaces = [
+    {
+      subnet = var.subnet
+    }
+  ]
 
   provisioner "file" {
     content     = local.haproxy_config
@@ -92,6 +97,11 @@ resource "crusoe_compute_instance" "rke_headnode" {
     }
   )
   host_channel_adapters = local.headnode_has_ib ? [{ ib_partition_id = var.ib_partition_id }] : null
+  network_interfaces = [
+    {
+      subnet = var.subnet
+    }
+  ]
 
 
   provisioner "file" {
@@ -142,6 +152,11 @@ resource "crusoe_compute_instance" "workers" {
   image                 = var.worker_image
   startup_script        = file("${path.module}/rkeinstall-worker.sh")
   host_channel_adapters = local.worker_has_ib ? [{ ib_partition_id = var.ib_partition_id }] : null
+  network_interfaces = [
+    {
+      subnet = var.subnet
+    }
+  ]
   provisioner "file" {
     content     = jsonencode(crusoe_compute_instance.rke_headnode[0])
     destination = "/root/rke-0-main.json"
@@ -163,16 +178,4 @@ resource "crusoe_compute_instance" "workers" {
       private_key = file("${var.ssh_privkey_path}")
     }
   }
-}
-
-resource "crusoe_vpc_firewall_rule" "rke_rule" {
-  network           = local.ingress_interface.network
-  name              = "rke-pub-access"
-  action            = "allow"
-  direction         = "ingress"
-  protocols         = "tcp"
-  source            = "0.0.0.0/0"
-  source_ports      = "1-65535"
-  destination       = "${local.ingress_interface.private_ipv4.address}/32"
-  destination_ports = "6443"
 }
