@@ -67,7 +67,7 @@ resource "crusoe_compute_instance" "rke_lb" {
   startup_script = file("${path.module}/rkehaproxy-install.sh")
   network_interfaces = [
     {
-      subnet = var.subnet
+      subnet = var.vpc_subnet
     }
   ]
 
@@ -99,7 +99,7 @@ resource "crusoe_compute_instance" "rke_headnode" {
   host_channel_adapters = local.headnode_has_ib ? [{ ib_partition_id = var.ib_partition_id }] : null
   network_interfaces = [
     {
-      subnet = var.subnet
+      subnet = var.vpc_subnet
     }
   ]
 
@@ -154,7 +154,7 @@ resource "crusoe_compute_instance" "workers" {
   host_channel_adapters = local.worker_has_ib ? [{ ib_partition_id = var.ib_partition_id }] : null
   network_interfaces = [
     {
-      subnet = var.subnet
+      subnet = var.vpc_subnet
     }
   ]
   provisioner "file" {
