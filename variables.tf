@@ -6,7 +6,7 @@ variable "ssh_privkey_path" {
   description = "The path to the ssh private key to auth to the instances"
 }
 
-#An up-to-date list of supported Crusoe Cloud images can be found at -> https://docs.crusoecloud.com/compute/images/overview 
+#An up-to-date list of supported Crusoe Cloud images can be found at -> https://docs.crusoecloud.com/compute/images/overview
 variable "headnode_image" {
   description = "The image to use for creating the headnode instance"
   default     = "ubuntu22.04:latest"
@@ -49,4 +49,8 @@ variable "deploy_location" {
 variable "instance_name_prefix" {
   description = "Prefix to use for the instance names"
   default     = "crusoe"
+}
+
+variable "vpc_subnet" {
+  description = "The subnet instances should be connected to"
 }
